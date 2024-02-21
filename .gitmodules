@@ -1,0 +1,3 @@
+[submodule "SmartAttentionModule"]
+	path = SmartAttentionModule
+	url = https://github.com/timtsapras23/SmartAttentionModule.git

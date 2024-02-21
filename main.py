@@ -60,8 +60,9 @@ class SmartAttention:
         # annotated_frame = results[0].plot()
 
         boxes = results[0].boxes.xyxy.cpu()
+        masks = results[0].masks.xyxy.cpu()
 
-        return boxes
+        return boxes, masks
     
     def apply_smart_attention(self, frame, boxes, unknown_threshold=0.6):
         for box in boxes:
