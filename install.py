@@ -2,7 +2,7 @@ import subprocess
 import sys
 import os
 
-requirements = os.path.join(os.path.dirname(__file__), "env.yaml")
+requirements = os.path.join(os.path.dirname(__file__), "environment.yml")
 conda_executable = "/root/miniconda3/bin/conda"
 
 try:

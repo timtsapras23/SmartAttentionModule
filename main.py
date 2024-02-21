@@ -60,7 +60,7 @@ class SmartAttention:
         # annotated_frame = results[0].plot()
 
         boxes = results[0].boxes.xyxy.cpu()
-        masks = results[0].masks.xyxy.cpu()
+        masks = results[0].masks.cpu()
 
         return boxes, masks
     
@@ -110,3 +110,17 @@ class SmartAttention:
     def unkown_handler(self, ):
         return
 
+if __name__ == "__main__":
+    sam = SmartAttention()
+    frame = cv2.imread('test.jpg')
+    cv2.imshow('frame', frame)
+    while True:
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            cv2.destroyAllWindows()
+            break
+        
+    boxes, masks = sam.extract_regions_with_sam(frame)
+    # annotated_frame = sam.apply_smart_attention(frame, boxes)
+    # cv2.imshow('frame', annotated_frame)
+    # if cv2.waitKey(1) & 0xFF == ord('q'):
+    #     cv2.destroyAllWindows()
