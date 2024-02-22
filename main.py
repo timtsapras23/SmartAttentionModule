@@ -55,12 +55,21 @@ class SmartAttention:
         return self.interaction_dictionary
 
 
-    def extract_regions_with_sam(self, frame):
-        results = self.fastsam.track(frame, stream=False, show=False, conf=0.8, iou=0.2, mode="track", persist=True)
-        # annotated_frame = results[0].plot()
+    def extract_regions_with_sam(self, frame, show=False):
+        results = self.fastsam.track(frame, stream=False, show=show, conf=0.8, iou=0.2, mode="track", persist=True)
+        if show:
+            while True:
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    cv2.destroyAllWindows()
+                    break
 
         boxes = results[0].boxes.xyxy.cpu()
-        masks = results[0].masks.cpu()
+        masks_from_sam = results[0].masks.cpu()
+        masks = []
+        for mask in masks_from_sam:
+            resize_mask = cv2.resize(mask.data.numpy().astype(np.uint8).transpose(1,2,0), (frame.shape[1], frame.shape[0]))
+            masks.append(resize_mask)
+        
 
         return boxes, masks
     
@@ -81,10 +90,10 @@ class SmartAttention:
             else:
                 class_name = self.dictionary_classes[np.argmax(distances)]
             
-            #print(np.mean(distances), np.std(distances), np.max(distances), np.min(distances), np.argmax(distances), self.dictionary_filenames[np.argmax(distances)])
+            print(np.mean(distances), np.std(distances), np.max(distances), np.min(distances), np.argmax(distances), self.dictionary_filenames[np.argmax(distances)])
             
             # draw rectangle and label
-            #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             cv2.rectangle(frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2)
             cv2.putText(frame, class_name, (int(box[0]), int(box[1])), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
             # add the similarity as well
@@ -119,8 +128,12 @@ if __name__ == "__main__":
             cv2.destroyAllWindows()
             break
         
-    boxes, masks = sam.extract_regions_with_sam(frame)
-    # annotated_frame = sam.apply_smart_attention(frame, boxes)
-    # cv2.imshow('frame', annotated_frame)
-    # if cv2.waitKey(1) & 0xFF == ord('q'):
-    #     cv2.destroyAllWindows()
+    boxes, masks = sam.extract_regions_with_sam(frame, show=True)
+    
+    for mask in masks:
+        thing = cv2.bitwise_and(frame, frame, mask=mask)
+        cv2.imshow('frame', thing)
+        while True:
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                cv2.destroyAllWindows()
+                break
