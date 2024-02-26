@@ -17,7 +17,7 @@ class SmartAttention:
         self.clip_model, _, self.clip_preprocess = open_clip.create_model_and_transforms("ViT-L-14", pretrained="laion2b_s32b_b82k", device=device, jit=False)
         self.device = device
         self.dictionary_features, self.dictionary_classes, self.dictionary_filenames = self.create_dictionary(dictionary_path=initial_dictionary_path)
-        self.interaction_dictionary = self.create_interactions_dictionary()
+        self.interaction_dictionary = self.create_interactions_dictionary(dictionary_path=initial_dictionary_path)
     
     def extract_clip_features(self, img):
         img = Image.fromarray(img)
