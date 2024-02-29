@@ -1,1 +1,1 @@
-from .main import SmartAttention
+from .smart_attn import SmartAttention

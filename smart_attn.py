@@ -14,7 +14,7 @@ class SmartAttention:
     def __init__(self, device='cuda:0', initial_dictionary_path='image_dictionary/images'):
         self.initial_dictionary_path = initial_dictionary_path
         self.fastsam = FastSAM('./FastSAM-s.pt')
-        self.clip_model, _, self.clip_preprocess = open_clip.create_model_and_transforms("ViT-L-14", pretrained="laion2b_s32b_b82k", device=device, jit=False)
+        self.clip_model, _, self.clip_preprocess = open_clip.create_model_and_transforms("ViT-B-32", pretrained="laion2b_s34b_b79k", device=device, jit=False)
         self.device = device
         self.dictionary_features, self.dictionary_classes, self.dictionary_filenames = self.create_dictionary(dictionary_path=initial_dictionary_path)
         self.interaction_dictionary = self.create_interactions_dictionary(dictionary_path=initial_dictionary_path)
@@ -56,7 +56,8 @@ class SmartAttention:
 
 
     def extract_regions_with_sam(self, frame, show=False):
-        results = self.fastsam.track(frame, stream=False, show=show, conf=0.8, iou=0.2, mode="track", persist=True)
+        results = self.fastsam.track(frame, stream=False, show=show, conf=0.9, iou=0.6, mode="track", persist=True)
+        print(self.fastsam.device)
         if show:
             while True:
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -74,9 +75,12 @@ class SmartAttention:
         return boxes, masks
     
     def apply_smart_attention(self, frame, boxes, unknown_threshold=0.6):
+        
+        unknown_images = []
+        #frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         for box in boxes:
             img_box = frame[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
-
+            #img_box_plain = np.copy(img_box)
             img_box_features = self.extract_clip_features(img_box)
 
             distances = np.dot(self.dictionary_features, img_box_features.cpu().numpy().T) 
@@ -87,13 +91,14 @@ class SmartAttention:
             
             if np.max(distances) < unknown_threshold:
                 class_name = "unknown"
+                #unknown_images.append(img_box_plain) 
             else:
                 class_name = self.dictionary_classes[np.argmax(distances)]
             
-            print(np.mean(distances), np.std(distances), np.max(distances), np.min(distances), np.argmax(distances), self.dictionary_filenames[np.argmax(distances)])
+            #print(np.mean(distances), np.std(distances), np.max(distances), np.min(distances), np.argmax(distances), self.dictionary_filenames[np.argmax(distances)])
             
             # draw rectangle and label
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             cv2.rectangle(frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2)
             cv2.putText(frame, class_name, (int(box[0]), int(box[1])), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
             # add the similarity as well
@@ -102,19 +107,36 @@ class SmartAttention:
 
         annotated_frame = frame
 
-        return annotated_frame
+        return annotated_frame, unknown_images
     
     def add_interactions(self, _class, interactions = 1):
         if _class in self.interaction_dictionary.keys():
             self.interaction_dictionary[_class] = self.interaction_dictionary[_class] + interactions
         else:
             self.interaction_dictionary[_class] =  interactions
+    
+    def add_view(self, img, class_name=None, new=False):
+        if new:
+            class_list = os.listdir(self.initial_dictionary_path)
+            new_objects = [int(obj.split('_')[1]) for obj in class_list if 'object_' in obj]
+            if new_objects == []:
+                new_idx = 0
+            else:
+                new_idx = max(new_objects)+1
 
+            os.mkdir(f"{self.initial_dictionary_path}/object_{new_idx}")
+            cv2.imwrite(f"{self.initial_dictionary_path}/object_{new_idx}/view_0.png", img)
+            print("Added an extra object!")
+
+        else:
+            views_list = os.listdir(f"{self.initial_dictionary_path}/{class_name}")
+            instance = max([int(view.split("_")[1]) for view in views_list])
+            cv2.imwrite(f"{self.initial_dictionary_path}/{class_name}/view_{instance}.png", img)
     
     def database_update(self):
         self.dictionary_features, self.dictionary_classes, self.dictionary_filenames = self.create_dictionary(dictionary_path=self.initial_dictionary_path)
         self.interaction_dictionary = self.update_interactions_dictionary(dictionary_path=self.initial_dictionary_path)
-
+        print("Database up to date.")
     
     def unkown_handler(self, ):
         return
