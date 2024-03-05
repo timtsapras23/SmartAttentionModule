@@ -57,7 +57,7 @@ class SmartAttention:
 
     def extract_regions_with_sam(self, frame, show=False):
         results = self.fastsam.track(frame, stream=False, show=show, conf=0.9, iou=0.6, mode="track", persist=True)
-        print(self.fastsam.device)
+        #print(self.fastsam.device)
         if show:
             while True:
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -65,18 +65,18 @@ class SmartAttention:
                     break
 
         boxes = results[0].boxes.xyxy.cpu()
-        masks_from_sam = results[0].masks.cpu()
+        """masks_from_sam = results[0].masks.cpu()
         masks = []
         for mask in masks_from_sam:
             resize_mask = cv2.resize(mask.data.numpy().astype(np.uint8).transpose(1,2,0), (frame.shape[1], frame.shape[0]))
-            masks.append(resize_mask)
+            masks.append(resize_mask)"""
         
 
-        return boxes, masks
+        return boxes
     
     def apply_smart_attention(self, frame, boxes, unknown_threshold=0.6):
         
-        unknown_images = []
+        #unknown_images = []
         #frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         for box in boxes:
             img_box = frame[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
@@ -107,7 +107,27 @@ class SmartAttention:
 
         annotated_frame = frame
 
-        return annotated_frame, unknown_images
+        return annotated_frame
+    
+       
+    def find_unkown(self, frame, boxes, unknown_threshold=0.6):
+        
+        unknown_images = []
+        #frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        for box in boxes:
+            img_box = frame[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
+            img_box_features = self.extract_clip_features(img_box)
+
+            distances = np.dot(self.dictionary_features, img_box_features.cpu().numpy().T) 
+            denom = (np.linalg.norm(self.dictionary_features, axis=1) * np.linalg.norm(img_box_features.cpu().numpy(), axis=1))
+            distances = distances.squeeze() / denom
+
+           
+            
+            if np.max(distances) < unknown_threshold:
+                unknown_images.append(img_box) 
+
+        return unknown_images
     
     def add_interactions(self, _class, interactions = 1):
         if _class in self.interaction_dictionary.keys():
@@ -142,20 +162,21 @@ class SmartAttention:
         return
 
 if __name__ == "__main__":
-    sam = SmartAttention()
-    frame = cv2.imread('test.jpg')
+    sam = SmartAttention(device='cuda:0', initial_dictionary_path='modules/SmartAttentionModule/image_dictionary_2/images')
+    frame = cv2.imread('image_dictionary_2/images/object_0/view_0.png')
     cv2.imshow('frame', frame)
     while True:
         if cv2.waitKey(1) & 0xFF == ord('q'):
             cv2.destroyAllWindows()
             break
-        
-    boxes, masks = sam.extract_regions_with_sam(frame, show=True)
+       
+    boxes = sam.extract_regions_with_sam(frame, show=True)
+    print(boxes)
     
-    for mask in masks:
+    """for mask in masks:
         thing = cv2.bitwise_and(frame, frame, mask=mask)
         cv2.imshow('frame', thing)
         while True:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 cv2.destroyAllWindows()
-                break
+                break"""
